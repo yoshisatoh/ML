@@ -9,6 +9,7 @@
 #
 # Github:
 # https://github.com/yoshisatoh/ML/tree/main/Supervised/Classification/DNN/dlbclswgts.py
+# https://github.com/yoshisatoh/ML/blob/main/Supervised/Classification/DNN/dlbclswgts.py
 #
 #
 ########## Input Data Files
