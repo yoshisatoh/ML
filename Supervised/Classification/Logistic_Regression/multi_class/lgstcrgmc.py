@@ -321,6 +321,7 @@ print(dfclass)
 1  Iris-versicolor      1
 2   Iris-virginica      2
 '''
+print('')
 #exit()
 #
 #
@@ -433,7 +434,7 @@ thetas, classes, costs = fit(x_train[:, [xnn, ynn]], y_train, max_iter, alpha)
 
 plt.plot(costs)
 plt.xlabel('number of epochs'); plt.ylabel('cost');
-plt.title("cost improvement over each epoch")
+plt.title("Training Data and cost improvement over each epoch")
 plt.savefig("Figure_4_Training_Data_and_cost_improvement_over_each_epoch.png")
 plt.show()
 
