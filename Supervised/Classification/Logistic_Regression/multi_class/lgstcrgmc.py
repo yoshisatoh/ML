@@ -5,14 +5,14 @@
 #  All rights reserved.
 #
 # Created:      2021/09/29
-# Last Updated: 2021/09/29
+# Last Updated: 2021/09/30
 #
 # Github:
 # https://github.com/yoshisatoh/ML/tree/main/Supervised/Classification/Logistic_Regression/multi_class/lgstcrgmc.py
 # https://github.com/yoshisatoh/ML/blob/main/Supervised/Classification/Logistic_Regression/multi_class/lgstcrgmc.py
 #
 #
-########## Input Data Files
+########## Input Data File(s)
 #
 #iris.csv
 #
@@ -31,24 +31,33 @@
 #
 # Run this script on Terminal of MacOS as follows:
 #
-#python lgstcrgmc.py iris.csv Species petal_length petal_width
+#python lgstcrgmc.py iris.csv Species petal_length petal_width 5000 0.1
 #or
-#python lgstcrgmc.py iris.csv Species sepal_length sepal_width
+#python lgstcrgmc.py iris.csv Species sepal_length sepal_width 5000 0.1
 #
 # Generally,
-#python lgstcrgmc.py (dtf: data file) (categoryname: category name) (x-axis) (y-axis)
+#python lgstcrgmc.py (dtf: data file) (categoryname: category names for classification) (x-axis) (y-axis) (max_iter) (alpha: learning rate)
+#
+# x and y-axes will be used to draw a graph with boundary lines for classification.
+#
+# The learning rate (alpha) determines how rapidly we update the parameters.
+# If the learning rate is too large, we may "overshoot" the optimal value.
+# Similarly, if it is too small, then we will need so many iterations to converge to the best values.
+# Thus, it is crucial to use a well-tuned learning rate.
 #
 #
 ########## References
+#https://archive.ics.uci.edu/ml/datasets/iris
 #https://teddykoker.com/2019/06/multi-class-classification-with-logistic-regression-in-python/
 #https://github.com/teddykoker/blog/blob/master/_notebooks/2019-06-16-multi-class-classification-with-logistic-regression-in-python.ipynb
-#https://archive.ics.uci.edu/ml/datasets/iris
 #
 #
 ####################
 
 
-########## import
+
+
+########## import Python libraries
 
 import pandas as pd
 import numpy as np
@@ -56,46 +65,72 @@ import matplotlib.pyplot as plt
 import json
 import sys
 
-plt.rcParams["figure.figsize"] = (5, 4)    # (w, h)
-plt.rcParams["figure.dpi"] = 200
 
+
+
+########## color settings
+
+plt.rcParams["figure.figsize"] = (5, 4)    # (w, h)
+plt.rcParams["figure.dpi"]     = 200
+#
 #print(plt.rcParams['image.cmap'])
 #viridis
 
-# training data and test data are always the same if you do not change
-# the following seed(n)
+
+# color map for labels of legend in graphs
+#cm = plt.cm.get_cmap('RdYlBu')
+#cm = plt.cm.get_cmap('rainbow')
+#cm = plt.cm.get_cmap('viridis')
+cm = ['#FF0000', '#00FF00', '#0000FF', '#FF00FF']    ##### Add other colors if you have more than 4 classifications/classes
+#print(type(cm))
+#print(cm[0])
+
+
+
+
+########## np.random.seed(n)
+
+# training data and test data are always the same if you do not change the following [1] seed(n)
 np.random.seed(42)
 #
-# num_train (0.80) and training-test data ratio (training:test=0.80:0.20) as shown below
+# .. and also
+# [2] num_train (0.80), and
+# [3] training-test data ratio (training data : test data = 0.80 : 0.20) as shown below
 
 
 
 
 ########## arguments
 
-dtf          = str(sys.argv[1])
+#print(str(sys.argv[0]))    #0 specifies a python script itself, 'lgstcrgmc.py', not an argument
+
+dtf          = str(sys.argv[1])    #'iris.csv'
 categoryname = str(sys.argv[2])    #'Species'
 xn           = str(sys.argv[3])    #'petal_length'
 yn           = str(sys.argv[4])    #'petal_width'
 
+max_iter     = int(sys.argv[5])    #5000
+alpha        = float(sys.argv[6])  #0.1
 
 
 
-########## The Sigmoid Function
+
+########## Figure 1: A Sigmoid Function
 #
-# Let’s say we want to classify our data into two categories: negative and positive.
+# Let’s say we want to classify our data into two categories: negative (0) and positive (1).
 #
-# Unlike linear regression, where we want to predict a continuous value,
-# we want our classifier to predict the probability that the data is positive (1), or negative (0).
-# For this we will use the Sigmoid function:
+# Unlike linear regression, where we predict a continuous value,
+# in classification, we let our classifier to predict the probability that the data is positive (1), or negative (0).
+# For the latter classification problem, especially in logistic regression, we use a Sigmoid function.
+# Note that logistic "regression" is actually used for classification of discrete numbers (classes), not regression of continuous values.
 
 
 def sigmoid(z):
     return 1 / (1 + np.exp(-z))
 
 
-# If we plot the function, we will notice that as the input approaches +∞, the output approaches 1,
-# and as the input approaches −∞, the output approaches 0.
+# If we plot the sigmoid function, we notice that as the input x approaches +∞, the output sigmoid(x) approaches 1,
+# and as the input x approaches −∞, the output sigmoid(x) approaches 0.
 
 x = np.linspace(-10, 10, 200)
 
@@ -103,7 +138,7 @@ plt.figure(1)
 
 plt.plot(x, sigmoid(x))
 plt.axvline(x=0, color='k', linestyle='--');
-plt.title("Sigmoid");
+plt.title("Sigmoid Function");
 plt.xlabel('x'); plt.ylabel('sigmoid(x)')
 plt.savefig("Figure_1_Sigmoid_Function.png")
 plt.show()
@@ -113,16 +148,17 @@ plt.show()
 
 
 
-########## Cost Function
+########## Figure 2: Cost Function J
 
-# By passing the product of our inputs and parameters to the sigmoid function, g,
-# we can form a prediction h of the probability of input x being classified as positive.
+# By passing the product of our inputs x and parameters θT to the sigmoid function, g,
+# we can form a prediction h of the probability of input x being classified as positive (1).
 #
 # hθ(x) = g(θT x)
-
-# When we perform linear regression, we usually use Mean Squared Error as our cost function. This works well for regression.
-# However, for classification we will use the Cross Entropy Loss function J.
-# Logistic "regression" is actually for classification of discrete values, not regression of continuous values.
+#
+# When we perform linear regression, we usually use Mean Squared Error as our cost function. This works well for liner regression.
+#
+# However, for classification, we use the Cross Entropy Loss function J.
+# Once again, please note that logistic "regression" is actually used for classification of discrete values, not regression of continuous values.
 
 h = np.linspace(0, 1)[1:-1]
 
@@ -132,7 +168,7 @@ for y in [0, 1]:
     plt.plot(h, -y * np.log(h) - (1 - y) * np.log(1 - h), label=f"y={y}")
 
 plt.title("Cross Entropy Loss") 
-#J: Cross Entropy Loss (=Cost) Functon
+# J: Cross Entropy Loss (=Cost) Functon
 plt.xlabel('$h_ {\\theta}(x)$'); plt.ylabel('$J(\\theta)$')
 plt.legend();
 plt.savefig("Figure_2_Cross_Entropy_Loss_Function.png")
@@ -146,7 +182,7 @@ plt.show()
 
 
 
-########## Gradient Function
+########## A Gradient Function
 
 # The following single Python function returns both our cost (function with respect to our parameters) and gradient:
 
@@ -164,12 +200,18 @@ def cost(theta, x, y):
 
 ########## Training
 
-# Training function fit:
+##### Training function fit
 #
-#max_iter=5000
-#alpha=0.1
 #
-def fit(x, y, max_iter=5000, alpha=0.1):
+#print(max_iter)
+#5000
+#
+#print(alpha)
+#0.1
+#
+#
+#def fit(x, y, max_iter=5000, alpha=0.1):
+def fit(x, y, max_iter, alpha):
     x = np.insert(x, 0, 1, axis=1)
     thetas = []
     classes = np.unique(y)
@@ -188,8 +230,10 @@ def fit(x, y, max_iter=5000, alpha=0.1):
         thetas.append(theta)
     return thetas, classes, costs
 
+#exit()
 
-# Prediction function that predicts a class label using the maximum hypothesis hθ(x):
+
+##### Prediction function that predicts a class label using the maximum hypothesis hθ(x):
 #
 def predict(classes, thetas, x):
     x = np.insert(x, 0, 1, axis=1)
@@ -201,19 +245,22 @@ def predict(classes, thetas, x):
 
 
 
-########## Data Set
+########## Input Data Set
 
-# We will use the Iris Data Set, a commonly used dataset containing 3 species of iris plants.
+# We will use the iris data set, a commonly used dataset containing 3 species of iris plants. These 3 species will be used as 3 distinct classification categories (0, 1, and 2).
+#
 # Each plant in the dataset has 4 attributes:
 #    sepal length,
 #    sepal width,
 #    petal length, and
 #    petal width.
-# We will use our logistic regression model to predict flowers’ species using two specified attributes out of these all attributes.
+#
+# We will use our logistic regression model to predict flowers’ species using TWO SPECIFIED attributes out of these 4 attributes.
 
+
+##### raw input dataset
 
 #dtf = "iris.csv"
-#
 df = pd.read_csv(dtf, header=0)    #first row (0) is a header 
 
 
@@ -247,9 +294,9 @@ Name: Species, Length: 150, dtype: object
 #exit()
 
 
-##### classification data frame dfclass
+##### classification data frame (dfclass)
 
-# Now we encode the species from string to integer
+# Now we encode classification categories from string to integer
 #
 dfclass = pd.concat([df[categoryname], df[categoryname].astype('category').cat.codes], axis=1)
 dfclass = pd.DataFrame(dfclass.drop_duplicates())
@@ -262,7 +309,6 @@ dfclass = dfclass.reset_index(drop=True)
 1  Iris-versicolor  1
 2   Iris-virginica  2
 '''
-#
 #exit()
 #
 #
@@ -277,9 +323,19 @@ print(dfclass)
 '''
 #exit()
 #
+#
 #print(dfclass.columns)
 #Index(['Species', 'class'], dtype='object')
+#exit()
 #
+#
+#print(dfclass[categoryname].unique())
+#['Iris-setosa' 'Iris-versicolor' 'Iris-virginica']
+#exit()
+#
+#
+#print(dfclass['class'].unique())
+#[0 1 2]
 #exit()
 
 
@@ -291,14 +347,15 @@ xnn = df.columns.get_loc(xn)
 #
 #print(xnn)
 #2
-#
-#
+
+
 #yn = 'petal_width'
 ynn = df.columns.get_loc(yn)
 #
 #print(ynn)
 #3
-#
+
+
 #exit()
 
 
@@ -320,18 +377,25 @@ Name: Species, Length: 150, dtype: int8
 #exit()
 
 
-# Shuffle the data, and split it into training and test data:
+##### Shuffle the data, and split it into training and test data
+
+
+# shuffle the data
 #
 data = np.array(df)
 np.random.shuffle(data)
+
+
+# split data into training and test data
 #
-num_train = int(.8 * len(data))  # 80/20 train/test split
+num_train = int(0.80 * len(data))    # 80/20 train/test split
 #
 x_train, y_train = data[:num_train, :-1], data[:num_train, -1]
 x_test,  y_test  = data[num_train:, :-1], data[num_train:, -1]
 
 
-# Save as csv files
+# save as csv files
+#
 np.savetxt('x_train.csv', x_train, delimiter=',', fmt='%.8f')
 np.savetxt('y_train.csv', y_train, delimiter=',', fmt="%.0f")
 np.savetxt( 'x_test.csv', x_test,  delimiter=',', fmt='%.8f')
@@ -340,140 +404,56 @@ np.savetxt( 'y_test.csv', y_test,  delimiter=',', fmt="%.0f")
 
 
 
-##### Training Data
+########## Figure 3: Training Data
 
 plt.figure(3)
 
-#print(x_train)
-#print(x_train[:, xnn])
-#print(x_train[:, ynn])
-#print(y_train)
-#print(y_train[:])
-#
-#plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o')
-#plt.plot(x_train[:, xnn], x_train[:, ynn], label=y_train)
-#plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train[:], alpha=0.5, s=10, marker='o', label=y_train[:])
-#plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o', label=df[categoryname])
-#plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o', label='test')
-#
-#
-#print(len(x_train))
-#print(len(y_train))
-#
-'''
-for i in range(len(y_train)):
-    print(y_train[i])
-    plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o', label='0' if y_train[i] == 0 else '1')
-'''
-#
-#
-#print(len(np.unique(y_train)))
 c = len(np.unique(y_train))
 #
 for i in range(c):
-    #print(np.unique(y_train)[i])
-    #print(y_train == i)
-    #print(type(x_train[:, xnn]))
-    #print(x_train[:, xnn][(y_train == i)])
-    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', cmap=cm, label=i)
+    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', color=cm[i], label=i)
 #
-#
-###plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o', label=y_train)
-
 
 plt.xlabel(xn); plt.ylabel(yn);
 plt.title("Training Data")
-#
-#print(dfclass)
-#plt.legend();
-#plt.legend(labels=dfclass);
-#plt.legend(labels=y_train[:], loc='best');
-#plt.legend(labels=y_train, loc='best');
 plt.legend(loc='best');
-#plt.legend(labels=['0', '1', '2'], loc='best');
-#plt.legend(labels=str(y_train), ncol=3);
-#plt.legend();
-#plt.legend(['0', '1', '2']);
-#plt.legend(labels=dfclass[categoryname]);
-#print(dfclass[categoryname])
-#
 plt.savefig("Figure_3_Training_Data.png")
 plt.show()
 
 
 
 
-##### cost improvement over each epoch
+########## Figure 4: Training Data and cost improvement over each epoch
 
 plt.figure(4)
 
-thetas, classes, costs = fit(x_train[:, [xnn, ynn]], y_train)
+thetas, classes, costs = fit(x_train[:, [xnn, ynn]], y_train, max_iter, alpha)
 
 plt.plot(costs)
-plt.xlabel('Number of Epochs'); plt.ylabel('Cost');
+plt.xlabel('number of epochs'); plt.ylabel('cost');
 plt.title("cost improvement over each epoch")
-plt.savefig("Figure_4_cost_improvement_over_each_epoch.png")
+plt.savefig("Figure_4_Training_Data_and_cost_improvement_over_each_epoch.png")
 plt.show()
 
 
 
 
-########## linear boundaries generated by the parameters
-
-#print(x_train)
-'''
-[[6.1 2.8 4.7 1.2]
-...
- [5.2 2.7 3.9 1.4]]
-'''
-#
-#print(x_train[:,2])
-'''
-[4.7 1.7 6.9 4.5 4.8 1.5 3.6 5.1 4.5 3.9 5.1 1.4 1.3 1.5 1.5 4.7 5.8 3.9
- 4.5 5.6 1.6 4.9 1.6 5.6 6.4 5.2 5.8 5.9 1.4 1.6 1.  1.5 4.4 1.6 1.3 5.
- 4.5 1.5 1.4 1.5 5.1 4.5 4.7 1.3 1.5 3.7 5.1 5.5 4.4 6.1 4.2 6.6 4.5 1.4
- 6.7 4.1 1.4 1.3 1.9 3.5 4.9 1.9 1.6 1.7 4.2 1.5 4.2 6.7 1.4 4.3 5.  1.4
- 4.8 5.1 4.  4.5 5.4 4.  1.7 3.3 5.3 1.4 1.2 3.8 5.  1.5 5.1 1.5 1.6 4.8
- 3.  5.7 5.1 5.6 6.1 4.  1.4 1.1 5.  6.  1.5 1.4 1.3 4.9 5.6 1.4 5.5 6.
- 1.3 4.7 4.6 4.8 4.7 5.3 1.6 5.4 4.2 5.2 3.5 3.9]
-'''
-#
-#print(x_train[:, 3])
-'''
-[4.7 1.7 6.9 4.5 4.8 1.5 3.6 5.1 4.5 3.9 5.1 1.4 1.3 1.5 1.5 4.7 5.8 3.9
- 4.5 5.6 1.6 4.9 1.6 5.6 6.4 5.2 5.8 5.9 1.4 1.6 1.  1.5 4.4 1.6 1.3 5.
- 4.5 1.5 1.4 1.5 5.1 4.5 4.7 1.3 1.5 3.7 5.1 5.5 4.4 6.1 4.2 6.6 4.5 1.4
- 6.7 4.1 1.4 1.3 1.9 3.5 4.9 1.9 1.6 1.7 4.2 1.5 4.2 6.7 1.4 4.3 5.  1.4
- 4.8 5.1 4.  4.5 5.4 4.  1.7 3.3 5.3 1.4 1.2 3.8 5.  1.5 5.1 1.5 1.6 4.8
- 3.  5.7 5.1 5.6 6.1 4.  1.4 1.1 5.  6.  1.5 1.4 1.3 4.9 5.6 1.4 5.5 6.
- 1.3 4.7 4.6 4.8 4.7 5.3 1.6 5.4 4.2 5.2 3.5 3.9]
-[1.2 0.3 2.3 1.5 1.4 0.4 1.3 2.3 1.5 1.2 2.  0.1 0.2 0.1 0.3 1.6 2.2 1.1
- 1.3 2.2 0.2 1.8 0.4 2.1 2.  2.3 1.8 2.3 0.3 0.2 0.2 0.4 1.4 0.2 0.2 1.9
- 1.5 0.2 0.2 0.1 1.9 1.6 1.5 0.4 0.2 1.  1.5 1.8 1.4 2.5 1.3 2.1 1.5 0.2
- 2.  1.  0.2 0.3 0.4 1.  1.8 0.2 0.2 0.5 1.3 0.2 1.2 2.2 0.2 1.3 2.  0.2
- 1.8 1.9 1.  1.5 2.3 1.3 0.4 1.  1.9 0.2 0.2 1.1 1.7 0.1 2.4 0.2 0.6 1.8
- 1.1 2.3 1.6 1.4 2.3 1.3 0.2 0.1 1.5 1.8 0.2 0.3 0.2 1.5 2.4 0.3 2.1 2.5
- 0.2 1.4 1.5 1.8 1.4 2.3 0.2 2.1 1.5 2.  1.  1.4]
-'''
-
-
-########## Figure: Training Data and Linear Boundaries
+########## Figure 5: Training Data and Linear Boundaries
 
 ##### Training Data
 
 plt.figure(5)
 
-#print(len(np.unique(y_train)))
 c = len(np.unique(y_train))
-#
+
+
 for i in range(c):
-    #print(np.unique(y_train)[i])
-    #print(y_train == i)
-    #print(type(x_train[:, xnn]))
-    #print(x_train[:, xnn][(y_train == i)])
-    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
-#
-###plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o')
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', cmap=cm, label=i)
+    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', color=cm[i], label=i)
+
 
 plt.xlabel(xn); plt.ylabel(yn);
 
@@ -482,8 +462,7 @@ for theta in [thetas[0],thetas[2]]:
     k = -(j * theta[1] + theta[0]) / theta[2]
     plt.plot(j, k, color='k', linestyle="--")
 
-#plt.legend()
-#plt.legend(labels=y_train, loc='best');
+
 plt.legend(loc='best');
 plt.title("Training Data and Linear Boundaries")
 plt.savefig("Figure_5_Training_Data_and_Linear_Boundaries.png")
@@ -508,12 +487,15 @@ def makeLinearEquation(x1, y1, x2, y2):
 		line["n"] = y1 - (line["m"] * x1)
 	return line
 
+
+# For example,
 #print(json.dumps(makeLinearEquation(2, 4, 3, 7), indent=4))
-#a line that passes both (2, 4) and (3, 7)
+# draws a line that passes both (2, 4) and (3, 7), which is y = (m * x) + n where m = 3.0 and n = -2.0
 #{
 #    "m": 3.0,
 #    "n": -2.0
 #}
+
 
 '''
 For instance, to solve simultaneous linear equations below,
@@ -541,40 +523,31 @@ This means x=1.0, y=2.0.
 
 
 
-########## Figure: Training Data and Linear Boundaries (+Test Data)
+########## Figure 6: Training Data and Linear Boundaries (+ Test Data)
 
 plt.figure(6)
 
 ##### Training Data
 #
-#change cmap
-plt.rcParams['image.cmap'] = 'viridis'
 #
-#print(len(np.unique(y_train)))
 c = len(np.unique(y_train))
 #
-for i in range(c):
-    #print(np.unique(y_train)[i])
-    #print(y_train == i)
-    #print(type(x_train[:, xnn]))
-    #print(x_train[:, xnn][(y_train == i)])
-    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
 #
-###plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o')
-#plt.legend(y_train)
+for i in range(c):
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', label=i)
+    #plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', cmap=cm, label=i)
+    plt.scatter(x_train[:, xnn][(y_train == i)], x_train[:, ynn][(y_train == i)], alpha=0.5, s=10, marker='o', color=cm[i], label=i)
+#
 #
 plt.xlabel(xn); plt.ylabel(yn);
-#plt.legend(labels=y_train, loc='best');
 plt.legend(loc='best');
 
 
+##### Boundary Lines (calculated by Training Data)
 for theta in [thetas[0],thetas[2]]:
     #
     j = np.array([x_train[:, xnn].min(), x_train[:, xnn].max()])
     k = -(j * theta[1] + theta[0]) / theta[2]
-    #
-    #print(j)
-    #print(k)
     #
     print('y = mx + n')
     #print(json.dumps(makeLinearEquation(j[0], k[0], j[1], k[1]), indent=4))
@@ -586,12 +559,8 @@ for theta in [thetas[0],thetas[2]]:
     print('')
     #
     plt.plot(j, k, color='k', linestyle="--")
-    #plt.text((j.max()-j.min())*0.50, (k.max()-k.min())*0.50, 'y = (' + str(makeLinearEquation(j[0], k[0], j[1], k[1])['m']) + ')* x + (' + str(makeLinearEquation(j[0], k[0], j[1], k[1])['n']) + ')', size=7)
     plt.text((j.max()-j.min())*0.50, k.max()-max(x_train[:, ynn])*0.50, 'y = (' + str(makeLinearEquation(j[0], k[0], j[1], k[1])['m']) + ')* x + (' + str(makeLinearEquation(j[0], k[0], j[1], k[1])['n']) + ')', size=7)
-    #
 
-
-plt.title("Training Data and Linear Boundaries (+ Test Data)")
 
 # Three types of Species:
 #
@@ -600,34 +569,19 @@ plt.title("Training Data and Linear Boundaries (+ Test Data)")
 #Iris-virginica (2)
 
 
-#print(plt.rcParams['image.cmap'])
-#viridis
-#
-#change cmap
-plt.rcParams['image.cmap'] = 'rainbow'
-#plt.rcParams['image.cmap'] = 'jet'
-
-
 ##### Test Data
 
 c = len(np.unique(y_test))
 #
 for i in range(c):
-    #plt.scatter(x_test[:, xnn][(y_test == i)], x_test[:, ynn][(y_test == i)], alpha=0.5, s=10, marker='*', label=i)
-    plt.scatter(x_test[:, xnn][(y_test == i)], x_test[:, ynn][(y_test == i)], alpha=0.5, s=10, marker='*')
+    plt.scatter(x_test[:, xnn][(y_test == i)], x_test[:, ynn][(y_test == i)], alpha=0.5, s=10, marker='*', color=cm[i], label= 'Test ' + str(i))
 #
-###plt.scatter(x_train[:, xnn], x_train[:, ynn], c=y_train, alpha=0.5, s=10, marker='o')
-#plt.legend(y_train)
 #
+
+
+plt.title("Training Data and Linear Boundaries (+ Test Data)")
 plt.xlabel(xn); plt.ylabel(yn);
-#plt.legend(labels=y_test, loc='best', ncol=3);
-plt.legend(loc='best', ncol=3);
-#
-###plt.scatter(x_test[:, xnn], x_test[:, ynn], c=y_test, alpha=1.0, s=10, marker='*')
-
-
-#reset cmap
-plt.rcParams['image.cmap'] = 'viridis'
+plt.legend(loc='best', ncol=2);
 
 
 plt.savefig("Figure_6_Training_Data_and_Linear_Boundaries_plus_Test_Data.png")
@@ -638,29 +592,32 @@ plt.show()
 
 ########## Train and Test Accuracy
 
+
 def score(classes, theta, x, y):
     return (predict(classes, theta, x) == y).mean()
 
 
-##### Using only two features (xn and yn)
+##### Using only TWO SPECIFIED features (xn and yn)
 
 print("These are the results of TWO SPECIFIED explanatory variables:")
 print(f"Train Accuracy: {score(classes, thetas, x_train[:, [xnn, ynn]], y_train):.3f}")
 print(f"Test  Accuracy: {score(classes, thetas, x_test[:, [xnn, ynn]], y_test):.3f}")
 
 #Train Accuracy: 0.942
-#Test Accuracy: 0.933
+#Test  Accuracy: 0.933
 
 print("")
 
 
-##### Using all features
+##### Using ALL the features
 
-thetas, classes, costs = fit(x_train, y_train)
+thetas, classes, costs = fit(x_train, y_train, max_iter, alpha)
 
-print("If we use ALL explanatory variables:")
+print("If we use ALL the explanatory variables:")
 print(f"Train Accuracy: {score(classes, thetas, x_train, y_train):.3f}")
 print(f"Test  Accuracy: {score(classes, thetas, x_test, y_test):.3f}")
 
 #Train Accuracy: 0.967
-#Test Accuracy: 0.967
+#Test  Accuracy: 0.967
+
+print("")
