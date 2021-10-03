@@ -167,7 +167,7 @@ Second centroid:
 
 plt.figure(2, figsize=(8, 8))
 
-plt.scatter(df_train[xname], df_train[yname], s = 50, c = scatterc[0], label='Training', marker='o')
+plt.scatter(df_train[xname], df_train[yname], s = 50, c = scatterc[0], label='Training Data', marker='o')
 
 plt.title('K-means Clustering (Training Data)')
 plt.xlabel(xname)
@@ -178,7 +178,7 @@ for i in range(k):
     #
     #print(i)
     #print(str(i+1) + ' st/nd/th centroid --- ' + 'x: ' + str(Kmean.cluster_centers_[i, 0]) + ', y: ' + str(Kmean.cluster_centers_[i, 1]))
-    plt.scatter(Kmean.cluster_centers_[i, 0], Kmean.cluster_centers_[i, 1], s=100, c=scatterc[i+1], marker='s', label=i+1)
+    plt.scatter(Kmean.cluster_centers_[i, 0], Kmean.cluster_centers_[i, 1], s=100, c=scatterc[i+1], marker='s', label=('Cluster Centroid (by Training Data): '+ str(i+1)))
 
 plt.legend()
 
@@ -219,20 +219,20 @@ for l in range(len(np.array(df_test)[:, 0])):
 
 plt.figure(3, figsize=(8, 8))
 
-plt.scatter(df_train[xname], df_train[yname], s = 50, c = scatterc[0], marker='o', label='Training')
+plt.scatter(df_train[xname], df_train[yname], s = 50, c = scatterc[0], marker='o', label='Training Data')
 
-##### Training Data
+##### Cluster Centroids (by Training Data)
 for m in range(k):
     #
     #print(m)
     #print(str(m+1) + ' st/nd/th centroid --- ' + 'x: ' + str(Kmean.cluster_centers_[m, 0]) + ', y: ' + str(Kmean.cluster_centers_[m, 1]))
-    plt.scatter(Kmean.cluster_centers_[m, 0], Kmean.cluster_centers_[m, 1], s=100, c=scatterc[m+1], marker='s', label=('Training: '+ str(m+1)))
+    plt.scatter(Kmean.cluster_centers_[m, 0], Kmean.cluster_centers_[m, 1], s=100, c=scatterc[m+1], marker='s', label=('Cluster Centroid (by Training Data): '+ str(m+1)))
 
 
 ##### Test Data
 for n in range(len(np.array(df_test)[:, 0])):
     #
-    plt.scatter(df_test[xname][n], df_test[yname][n], s=100, c=scatterc[Kmean.predict(np.array(df_test))[n] + 1], marker='x', label=('Test:       '+ str(Kmean.predict(np.array(df_test))[n] + 1))) 
+    plt.scatter(df_test[xname][n], df_test[yname][n], s=50, c=scatterc[Kmean.predict(np.array(df_test))[n] + 1], marker='o', label=('Test Data:       '+ str(Kmean.predict(np.array(df_test))[n] + 1))) 
 
 
 ##### Graph
