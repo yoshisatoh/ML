@@ -8,7 +8,7 @@
 # Last Updated: 2021/10/10
 #
 # Github:
-# https://github.com/yoshisatoh/ML/tree/main/Supervised/Ensemble_Learning/el.py
+# https://github.com/yoshisatoh/ML/blob/main/Supervised/Classification/Ensemble_Learning/linear_and_non-linear/multi_class/el.py
 #
 #
 ########## The ultimate purpose of this script
