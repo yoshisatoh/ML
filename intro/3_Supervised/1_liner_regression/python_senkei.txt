@@ -1,0 +1,120 @@
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+%matplotlib inline
+
+df = pd.read_csv("senkei.csv", index_col=0)
+df.head()
+
+# 説明変数insta_good
+X = df.iloc[:, 2].values
+X = X.reshape(-1,1)
+ 
+# 目的変数sales
+Y = df.iloc[:, 0].values
+
+# sklearn.linear_model.LinearRegression クラスを読み込み
+from sklearn import linear_model
+clf = linear_model.LinearRegression()
+
+# 予測モデルを作成
+clf.fit(X, Y)
+ 
+# 回帰係数
+print(clf.coef_)
+ 
+# 切片
+print(clf.intercept_)
+ 
+# 決定係数
+print(clf.score(X, Y))
+
+# 説明変数
+X = df.iloc[:, 1:7].values
+
+# 目的変数
+Y = df.iloc[:, 0].values
+
+# 予測モデルを作成
+clf.fit(X, Y)
+
+# 偏回帰係数
+df_except_sales = df.iloc[:, 1:7]
+print(pd.DataFrame({"Name":df_except_sales.columns,
+                    "Coefficients":np.abs(clf.coef_)}).sort_values(by='Coefficients'))
+ 
+# 切片
+print(clf.intercept_)
+
+# データフレームの各列を正規化
+df2 = df.apply(lambda x: (x - np.mean(x)) / np.std(x))
+df2.head()
+
+# 説明変数
+X = df2.iloc[:, 1:7].values
+
+# 目的変数
+Y = df2.iloc[:, 0].values
+
+# 予測モデルを作成
+clf.fit(X, Y)
+
+# 偏回帰係数
+df2_except_sales = df2.iloc[:, 1:7]
+print(pd.DataFrame({"Name":df2_except_sales.columns,
+                    "Coefficients":np.abs(clf.coef_)}).sort_values(by='Coefficients'))
+
+# 切片
+print(clf.intercept_)
+
+# 説明変数
+X = df2.iloc[:, 1:7].values
+
+# 目的変数
+Y = df2.iloc[:, 0].values
+
+#学習用データとテスト用データを7:3に分割する
+from sklearn.model_selection import train_test_split
+X_train, X_test, Y_train, Y_test = train_test_split(X, Y, test_size=0.3)
+
+# 予測モデルを作成
+model = linear_model.LinearRegression()
+model.fit(X_train, Y_train)
+
+# 偏回帰係数
+df2_except_sales = df2.iloc[:, 1:7]
+print(pd.DataFrame({"Name":df2_except_sales.columns,
+                    "Coefficients":model.coef_}).sort_values(by='Coefficients') )
+ 
+# 切片
+print(model.intercept_)
+
+pred_train = model.predict(X_train)
+pred_test = model.predict(X_test)
+
+print('X_trainを使ったモデルの平均二乗誤差＝{:0.2f}'.format(np.mean((np.array(Y_train, dtype = int) - pred_train) ** 2)))
+print('X_testを使ったモデルの平均二乗誤差＝{:0.2f}'.format(np.mean((np.array(Y_test, dtype = int) - pred_test) ** 2)))
+
+# 学習用データの残差プロット
+train = plt.scatter(pred_train,(pred_train-Y_train),c='b',alpha=0.5)
+
+# テスト用データの残差プロット
+test = plt.scatter(pred_test,(pred_test-Y_test),c='r',alpha=0.5)
+
+# y=0の水平線
+plt.hlines(y=0,xmin=-8,xmax=8)
+
+plt.legend((train,test),('Training','Test'),loc='lower left')
+plt.title('Residual Plots')
+
+
+
+
+
+
+
+
+
+
+
+
