@@ -1,0 +1,176 @@
+from keras.models import Sequential
+from keras.layers import Activation, Dense
+from keras.optimizers import Adam
+import numpy as np
+import matplotlib.pyplot as plt
+from PIL import Image
+import os
+import keras
+import tensorflow as tf
+
+# Colab内にディレクトリを作成
+
+#ラベルUSAのディレクトリを作成
+DIR = "train/usa/"
+# DIRの名称のディレクトリがなければ作成
+if not os.path.exists(DIR):
+    os.makedirs(DIR)
+
+#ラベルItalyのディレクトリを作成
+DIR = "train/Italy/"
+# DIRの名称のディレクトリがなければ作成
+if not os.path.exists(DIR):
+    os.makedirs(DIR)
+
+#ラベルAustraliaのディレクトリを作成
+DIR = "train/Australia/"
+# DIRの名称のディレクトリがなければ作成
+if not os.path.exists(DIR):
+    os.makedirs(DIR)
+
+# 学習用のデータを作る.
+image_list = []
+label_list = []
+
+
+# ./img/train 以下のディレクトリの画像を読み込む。
+for dir in os.listdir("/content/train/"):
+    
+    dataset_path = "/content/train/" + dir 
+    label = -1
+
+    # USAはラベル0
+    if dir == "USA":
+      label = 0
+    # Italyはラベル1
+    elif dir == "Italy":
+      label = 1
+    # Australiaはラベル2
+    elif dir == "Australia":
+      label = 2
+    
+
+    for file in os.listdir(dataset_path):
+      # 配列label_listに正解ラベルを追加(USA:0 Italy:1 Australia:2)
+      label_list.append(label)
+      filepath = dataset_path + "/" + file
+      print(filepath)
+      image = Image.open(filepath)
+      image = image.resize((500, 500), Image.BICUBIC)
+      image = np.asarray(image)
+      image_list.append(image / 255.)
+
+# kerasに渡すためにnumpy配列に変換。
+train_data = np.array(image_list)
+
+train_label = np.array(label_list)
+
+%matplotlib inline
+
+import matplotlib.pyplot as plt
+
+plt.imshow(train_data[3])
+
+train_data.shape
+train_label.shape
+
+#train.data.shapeがinput_shape
+model = tf.keras.Sequential([
+                             tf.keras.layers.Conv2D(16, (3, 3),
+                                                    input_shape=(500, 500, 3), activation="relu"),
+                             tf.keras.layers.MaxPool2D((2, 2)),
+                             tf.keras.layers.Conv2D(32, (3, 3), activation="relu"),
+                             tf.keras.layers.MaxPool2D((2, 2)),
+                             tf.keras.layers.Flatten(),
+                             tf.keras.layers.Dense(512),
+                             tf.keras.layers.Dense(10, activation="softmax")
+])
+
+model.compile(optimizer="adam",
+              loss="sparse_categorical_crossentropy", metrics=["accuracy"])
+
+#モデルの学習
+np.random.seed(1)
+tf.random.set_seed(2)
+model.fit(train_data, train_label, epochs=20)
+
+#学習したモデルをファイルに保存
+model.save("world_heritage.h5")
+
+#保存したファイルの読み込み
+model_loaded = tf.keras.models.load_model("world_heritage.h5")
+
+# Colab内にディレクトリを作成
+DIR = "test/Australia"
+# DIRの名称のディレクトリがなければ作成
+if not os.path.exists(DIR):
+    os.makedirs(DIR)
+
+# テスト用のデータを作る。
+image_list = []
+
+# ./data/test 以下のディレクトリの画像を読み込む。
+for dir in os.listdir("/content/test/"):
+    
+    dataset_path = "/content/test/" + dir 
+    label = -1
+
+    # USAはラベル0
+    if dir == "USA":
+      label = 0
+    
+    # Italyはラベル1
+    elif dir == "Italy":
+      label = 1
+    
+    # Australiaはラベル2
+    elif dir == "Australia":
+      label = 2
+    
+    for file in os.listdir(dataset_path):
+      # 配列label_listに正解ラベルを追加(USA:0 Italy:1 Australia:2)
+      label_list.append(label)
+      filepath = dataset_path + "/" + file
+      print(filepath)
+      image = Image.open(filepath)
+      image = image.resize((500, 500), Image.BICUBIC)
+      image = np.asarray(image)
+      image_list.append(image / 255.)
+
+# kerasに渡すためにnumpy配列に変換。
+test_data = np.array(image_list)
+test_label = np.array(label_list)
+
+#正解率
+pred = model_loaded.predict_classes(test_data)
+(pred == test_label).sum() / len(test_label)
+
+label_names = ["USA","Italy","Australia"]
+
+correct_data = test_data[pred == test_label]
+correct_label = pred[pred == test_label]
+count_correct=len(correct_label)
+print(count_correct)
+
+#正解した画像を表示
+flg, axes = plt.subplots(2, 3, figsize=(10, 5))
+
+for i in range(count_correct):
+  ax = axes[i // 3][i % 3]
+  ax.set_title(label_names[correct_label[i]])
+  ax.axis("off")
+  ax.imshow(correct_data[i])
+
+plt.imshow(correct_data[0])
+
+
+
+
+
+
+
+
+
+
+
+
