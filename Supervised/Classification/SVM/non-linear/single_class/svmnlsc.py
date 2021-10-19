@@ -13,7 +13,7 @@
 #
 ########## Input Data File(s)
 #
-#df_yX.csv
+#df_yXz.csv
 #
 #
 ########## Usage Instructions
