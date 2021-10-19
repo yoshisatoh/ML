@@ -1,4 +1,4 @@
-#################### Support Vector Machines (SVMs) for Single-class Classification with a linear Boundary (discriminative classification) ####################
+#################### Support Vector Machines (SVMs) for Single-class Classification with a Non-linear Boundary (discriminative classification) ####################
 #
 #  (C) 2021, Yoshimasa (Yoshi) Satoh, CFA 
 #
